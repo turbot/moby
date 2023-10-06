@@ -141,6 +141,28 @@ func WithTLSClientConfig(cacertPath, certPath, keyPath string) Opt {
 	}
 }
 
+// WithTLSClientConfigVerification applies a tls config to the client transport, including the ability to enable or disable TLS verification
+func WithTLSClientConfigVerification(cacertPath, certPath, keyPath string, tlsVerify bool) Opt {
+	return func(c *Client) error {
+		opts := tlsconfig.Options{
+			CAFile:             cacertPath,
+			CertFile:           certPath,
+			KeyFile:            keyPath,
+			ExclusiveRootPools: true,
+			InsecureSkipVerify: !tlsVerify,
+		}
+		config, err := tlsconfig.Client(opts)
+		if err != nil {
+			return errors.Wrap(err, "failed to create tls config")
+		}
+		if transport, ok := c.client.Transport.(*http.Transport); ok {
+			transport.TLSClientConfig = config
+			return nil
+		}
+		return errors.Errorf("cannot apply tls config to transport: %T", c.client.Transport)
+	}
+}
+
 // WithTLSClientConfigFromEnv configures the client's TLS settings with the
 // settings in the DOCKER_CERT_PATH and DOCKER_TLS_VERIFY environment variables.
 // If DOCKER_CERT_PATH is not set or empty, TLS configuration is not modified.
